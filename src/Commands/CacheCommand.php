@@ -26,7 +26,8 @@ final class CacheCommand extends Command
         }
 
         $stacks = (array) $config->get('routify.stacks', []);
-        $paths = array_values(array_filter((array) $config->get('routify.paths', []), 'is_string'));
+        $paths = array_values(
+            array_filter((array) $config->get('routify.paths', []), 'is_string'));
 
         $rows = [];
         foreach ($stacks as $name => $raw) {
