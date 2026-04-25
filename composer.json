@@ -1,12 +1,25 @@
 {
     "name": "kirago/laravel-routify",
     "description": "Auto-discover and register Laravel route files spread across multiple folders, with configurable glob patterns, middleware groups and a fluent builder.",
-    "keywords": ["laravel", "routes", "auto-discovery", "route-discovery", "modules", "kirago"],
+    "keywords": [
+        "laravel",
+        "routes",
+        "routify",
+        "routelet",
+        "auto-discovery",
+        "route-discovery",
+        "modules",
+        "kirago"
+    ],
     "homepage": "https://github.com/kirago-tech/laravel-routify",
     "license": "MIT",
     "type": "library",
     "authors": [
-        { "name": "Simo Joel", "email": "joel.simo@kirago.tech", "role": "Developer" }
+        {
+            "name": "Simo Joel",
+            "email": "joel.simo@kirago.tech",
+            "role": "Developer"
+        }
     ],
     "require": {
         "php": "^8.2",
