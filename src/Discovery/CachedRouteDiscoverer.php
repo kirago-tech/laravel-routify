@@ -18,13 +18,13 @@ final class CachedRouteDiscoverer implements RouteDiscoverer
     public function discover(string $basePath, string $pattern): array
     {
         return $this->cache->rememberForever(
-            $this->cacheKey($basePath, $pattern),
+            self::cacheKey($this->keyPrefix, $basePath, $pattern),
             fn (): array => $this->inner->discover($basePath, $pattern),
         );
     }
 
-    private function cacheKey(string $basePath, string $pattern): string
+    public static function cacheKey(string $keyPrefix, string $basePath, string $pattern): string
     {
-        return $this->keyPrefix.':'.hash('xxh128', $basePath.'|'.$pattern);
+        return $keyPrefix.':'.hash('xxh128', $basePath.'|'.$pattern);
     }
 }
