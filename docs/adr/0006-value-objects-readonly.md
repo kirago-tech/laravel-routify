@@ -27,6 +27,10 @@ plus lisible si chaque modification est traçable et n'écrase rien.
 ```php
 final readonly class StackConfig
 {
+    public const CONTEXT_HTTP = 'http';
+    public const CONTEXT_CLI = 'cli';
+    public const CONTEXT_BROADCAST = 'broadcast';
+
     /** @param  list<string>  $middleware */
     public function __construct(
         public string $name,
@@ -36,11 +40,14 @@ final readonly class StackConfig
         public ?string $prefix = null,
         public ?string $namePrefix = null,
         public ?string $domain = null,
+        public string $context = self::CONTEXT_HTTP,
     ) {}
 
     public static function fromArray(string $name, array $config): self
     {
-        // valide $config['pattern'], applique les défauts, construit l'instance
+        // valide $config['pattern'], normalise/valide $config['middleware'],
+        // résout $config['context'] avec un default smart, applique les
+        // défauts pour les autres champs, construit l'instance.
     }
 
     public function withPrefix(?string $prefix): self     { /* nouvelle instance */ }
@@ -56,9 +63,15 @@ final readonly class StackConfig
 - **Constructor property promotion** — le constructeur est aussi la
   déclaration des propriétés, ergonomie PHP 8.
 - **`fromArray()` factory** — centralise la validation et l'application
-  des défauts (`enabled = true`, `middleware = []`, etc.).
-- **5 withers** — chacun retourne une nouvelle instance, l'instance
-  d'origine est préservée.
+  des défauts. Lève `InvalidConfigurationException` quand le `pattern`
+  est manquant/vide/non-string, quand `middleware` n'est pas une
+  `list<string>`, ou quand `context` n'est pas l'une des trois
+  constantes prévues. Le `context` n'est pas requis : `console` →
+  `cli`, `channels` → `broadcast`, n'importe quel autre nom → `http`
+  (cf. ADR-0004).
+- **5 withers** — chacun retourne une nouvelle instance qui préserve
+  les 8 propriétés (y compris `context`), l'instance d'origine reste
+  intacte.
 
 Le builder `RouteStackBuilder` accumule les modifications en chaînant
 ces withers :

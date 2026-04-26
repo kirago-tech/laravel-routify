@@ -40,5 +40,5 @@ Decisions*](https://cognitect.com/blog/2011/11/15/documenting-architecture-decis
 
 ### Qualité et publication
 - [ADR-0010 — Exceptions explicites, pas de `try/catch` silencieux](0010-exceptions-explicites.md)
-- [ADR-0011 — Trois commandes Artisan : `list`, `cache`, `clear`](0011-commandes-artisan.md)
+- [ADR-0011 — Quatre commandes Artisan : `list`, `cache`, `clear`, `optimize`](0011-commandes-artisan.md)
 - [ADR-0012 — Versioning par tags Git, pas de champ `version` dans `composer.json`](0012-versioning-par-tags-git.md)
