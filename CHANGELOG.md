@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manager singleton, wiring the cache decorator on demand, publishing the
   config under the `routify-config` tag and triggering automatic discovery
   on boot when configured.
+- `docs/adr/` directory holding twelve French-language Architecture Decision
+  Records covering every structural choice shipped with 1.0.0: layered
+  architecture, Symfony Finder, configurable glob patterns and stacks,
+  console/channels bypass, decorator-based cache with hashed keys,
+  `final readonly` value objects, extracted `StackLoader` contract, the
+  `refreshNameLookups()` workaround, opt-in auto-discovery, explicit
+  exception policy, the three Artisan commands and Git-tag versioning.
+  Plus an index README and a 0000 template for future ADRs.
 - 46 tests / 115 assertions across unit (Discovery, Support) and Feature
   (Discovery, Facade, FluentBuilder, Commands, Cache) suites via Orchestra
   Testbench and Pest 3.
