@@ -192,9 +192,24 @@ composer analyse         # PHPStan
 
 ---
 
+## Architecture
+
+The why-and-how of every architectural choice is documented as
+Architecture Decision Records under [`docs/adr/`](docs/adr/) (in French).
+Start with [ADR-0001 — Layered architecture](docs/adr/0001-architecture-en-couches.md)
+for the big picture.
+
+---
+
 ## Roadmap
 
-Tracked in [the plan document](PLAN_PACKAGE_LARAVEL_ROUTIFY.md#6-roadmap-post-10-hors-scope-de-ce-plan): scope-bindings per stack, OpenAPI generation, Pest assertions plugin, multi-tenant paths, and bridging into Laravel's native `route:cache`.
+Post-1.0 ideas, not committed:
+
+- per-stack `Route::scopeBindings()`
+- OpenAPI doc generation from discovered routes
+- `pestphp/pest-plugin-laravel` assertions (`expect()->toHaveDiscoveredRoute('api.users.index')`)
+- multi-tenant dynamic paths
+- bridging the discovery cache into Laravel's native `route:cache` mechanism
 
 ---
 
