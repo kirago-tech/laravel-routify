@@ -74,3 +74,22 @@ it('routify:clear forgets every cache key for every (path, stack) pair', functio
     expect(cache()->has($apiKey))->toBeFalse()
         ->and(cache()->has($webKey))->toBeFalse();
 });
+
+it('routify:optimize clears then re-warms the cache in a single call', function (): void {
+    enableRoutifyCache($this->app);
+
+    $apiKey = CachedRouteDiscoverer::cacheKey('routify:files', dirname(__DIR__).'/fixtures/modules', 'api*.php');
+
+    // Pre-warm so we can prove `optimize` clears the existing entry first.
+    $this->artisan('routify:cache')->assertSuccessful();
+    expect(cache()->has($apiKey))->toBeTrue();
+
+    $this->artisan('routify:optimize')->assertSuccessful();
+
+    expect(cache()->has($apiKey))->toBeTrue();
+});
+
+it('routify:optimize fails when cache is disabled', function (): void {
+    // The clear sub-call succeeds (no-op), but the cache sub-call fails.
+    $this->artisan('routify:optimize')->assertFailed();
+});

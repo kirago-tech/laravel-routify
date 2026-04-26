@@ -107,7 +107,7 @@ The "register every file by hand" tax is gone.
 composer require kirago/laravel-routify
 ```
 
-The package auto-registers via Laravel's package discovery. Publish the config when you want to customise it:
+The package auto-registers via Laravel's package discovery. Publish the config to customise it:
 
 ```bash
 php artisan vendor:publish --tag=routify-config
@@ -115,11 +115,25 @@ php artisan vendor:publish --tag=routify-config
 
 Requires PHP 8.2+ and Laravel 11 or 12.
 
+> **Zero-crash install** — the shipped config has `paths => []`. The package
+> is wired but does nothing until you point it at the directories your app
+> uses. No surprise exceptions on first boot.
+
 ---
 
 ## Quick start
 
-By default, `auto_discover_on_boot` is `true` — once the package is installed and `paths` points to your modules root, every enabled stack is loaded automatically. Drop your route files anywhere under that root:
+1. Add your route directories to `config/routify.php`:
+
+```php
+'paths' => [
+    app_path('Modules'),
+    // app_path('Features'),
+    // base_path('packages'),
+],
+```
+
+2. Drop route files anywhere under those roots:
 
 ```
 app/Modules/
@@ -129,19 +143,27 @@ app/Modules/
 └── Catalog/Routes/api-v2.php
 ```
 
-…and they all become `api/invoices`, `api/v2/*` etc. with the `api` middleware group applied.
+…and they all become `api/invoices`, `api/v2/*` etc. with the `api`
+middleware group applied. With `auto_discover_on_boot = true` (the default),
+that's it — no extra wiring.
 
-If you prefer explicit control, set `auto_discover_on_boot => false` and call from your `AppServiceProvider::boot()` (or `bootstrap/app.php`):
+For explicit control, set `auto_discover_on_boot => false` and call from
+your `AppServiceProvider::boot()` (recommended location — facades are
+guaranteed to be ready there):
 
 ```php
+// app/Providers/AppServiceProvider.php
 use Kirago\Routify\Facades\Routify;
 
-Routify::discover();              // every enabled stack
-Routify::discoverApi();           // only the api stack
-Routify::discoverApi('api/v1');   // override the prefix
-Routify::discoverWeb();
-Routify::discoverConsole();
-Routify::discoverChannels();
+public function boot(): void
+{
+    Routify::discover();              // every enabled stack
+    Routify::discoverApi();           // only the api stack
+    Routify::discoverApi('api/v1');   // override the prefix
+    Routify::discoverWeb();
+    Routify::discoverConsole();
+    Routify::discoverChannels();
+}
 ```
 
 ---
@@ -257,9 +279,82 @@ php artisan routify:list                # tabular view of every discovered file
 php artisan routify:list --stack=api    # restrict to one stack
 php artisan routify:cache               # warm the discovery cache
 php artisan routify:clear               # invalidate the discovery cache
+php artisan routify:optimize            # clear + cache in one call
 ```
 
-`routify:cache` and `routify:clear` only do useful work when `routify.cache.enabled` is `true` (typically `ROUTIFY_CACHE=true` in production). The cache is on the filesystem scan — Laravel's own `route:cache` is orthogonal and complementary.
+`routify:cache`, `routify:clear` and `routify:optimize` only do useful work
+when `routify.cache.enabled` is `true` (typically `ROUTIFY_CACHE=true` in
+production). The cache is on the filesystem scan — Laravel's own
+`route:cache` is orthogonal and complementary.
+
+---
+
+## Production deployment
+
+In production, scanning the filesystem on every boot is wasteful. Enable the
+cache and warm it at deploy time:
+
+```dotenv
+# .env (production)
+ROUTIFY_CACHE=true
+```
+
+Add the warm-up to the deployment script alongside the standard Laravel
+optimisations:
+
+```bash
+composer install --no-dev --optimize-autoloader
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan routify:optimize     # clears stale entries, re-warms the discovery cache
+```
+
+### CI/CD via Composer scripts
+
+To trigger Routify's cache refresh automatically on `composer install` /
+`composer update`, add this to **your application's** `composer.json`
+(not the package — Composer scripts live in the consuming app):
+
+```json
+{
+    "scripts": {
+        "post-install-cmd": [
+            "@php artisan routify:optimize --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan routify:optimize --ansi"
+        ]
+    }
+}
+```
+
+The `routify:optimize` call is a no-op when the cache is disabled, so it is
+safe to keep enabled across all environments.
+
+---
+
+## Security considerations
+
+Routify `require`s the route files it discovers. The same trust model as
+Laravel's own `routes/` directory applies — with one important shift: the
+list of paths now comes from your config, so the surface for misconfig is
+larger. Keep these in mind:
+
+- **Never put a writable directory in `routify.paths`.** Anything an
+  attacker can write to (uploads dir, runtime cache, tmp) becomes a code
+  execution vector at boot if Routify scans it.
+- **Symlinks are followed by default** (Symfony Finder behaviour). On
+  multi-tenant or shared-hosting setups where tenant-controlled directories
+  live under your scan paths, audit the symlinks.
+- **Cache poisoning = boot RCE.** If `routify.cache.enabled = true` and the
+  cache backend is compromised, an attacker can inject arbitrary file paths
+  into the cache. This is the standard Laravel cache trust model — protect
+  your Redis/Memcached/database cache the same way you protect
+  `bootstrap/cache/`.
+
+In short: treat `routify.paths` like you treat the `routes/` directory.
+Don't stage anything writable by the runtime web user under it.
 
 ---
 

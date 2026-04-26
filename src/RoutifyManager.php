@@ -14,6 +14,9 @@ use Kirago\Routify\Support\StackConfig;
 
 final class RoutifyManager implements StackLoader
 {
+    /** @var array<string, StackConfig>|null */
+    private ?array $stacksCache = null;
+
     public function __construct(
         private readonly RouteDiscoverer $discoverer,
         private readonly Router $router,
@@ -63,8 +66,21 @@ final class RoutifyManager implements StackLoader
             }
         }
 
+        if ($files === []) {
+            return;
+        }
+
+        $touchedRouter = false;
         foreach (array_keys($files) as $file) {
-            $this->registerRouteFile($stack, $file);
+            $touchedRouter = $this->registerRouteFile($stack, $file) || $touchedRouter;
+        }
+
+        // Routes registered via ->name() inside a group prefix are added to
+        // the collection before their final name exists. Rebuild the name
+        // lookup once per loadStack call so route('api.users.index') and
+        // Route::has() find them — refreshing per-file would be O(n²).
+        if ($touchedRouter) {
+            $this->router->getRoutes()->refreshNameLookups();
         }
     }
 
@@ -74,12 +90,12 @@ final class RoutifyManager implements StackLoader
         $this->loadStack($prefix !== null ? $stack->withPrefix($prefix) : $stack);
     }
 
-    private function registerRouteFile(StackConfig $stack, string $file): void
+    private function registerRouteFile(StackConfig $stack, string $file): bool
     {
-        if ($stack->name === 'console' || $stack->name === 'channels') {
+        if ($stack->context !== StackConfig::CONTEXT_HTTP) {
             require_once $file;
 
-            return;
+            return false;
         }
 
         $group = $this->router;
@@ -99,10 +115,7 @@ final class RoutifyManager implements StackLoader
 
         $group->group($file);
 
-        // Routes registered via ->name() inside a group prefix are added to
-        // the collection before their final name exists. Rebuild the name
-        // lookup so route('api.users.index') / Route::has() find them.
-        $this->router->getRoutes()->refreshNameLookups();
+        return true;
     }
 
     /**
@@ -110,6 +123,10 @@ final class RoutifyManager implements StackLoader
      */
     private function stacks(): array
     {
+        if ($this->stacksCache !== null) {
+            return $this->stacksCache;
+        }
+
         $raw = $this->config->get('routify.stacks', []);
         if (! is_array($raw)) {
             throw new InvalidConfigurationException('routify.stacks must be an array.');
@@ -120,7 +137,7 @@ final class RoutifyManager implements StackLoader
             $stacks[(string) $name] = StackConfig::fromArray((string) $name, (array) $config);
         }
 
-        return $stacks;
+        return $this->stacksCache = $stacks;
     }
 
     private function stack(string $name): StackConfig

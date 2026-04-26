@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Kirago\Routify\Commands\CacheCommand;
 use Kirago\Routify\Commands\ClearCommand;
 use Kirago\Routify\Commands\ListCommand;
+use Kirago\Routify\Commands\OptimizeCommand;
 use Kirago\Routify\Contracts\RouteDiscoverer;
 use Kirago\Routify\Discovery\CachedRouteDiscoverer;
 use Kirago\Routify\Discovery\FilesystemRouteDiscoverer;
@@ -55,6 +56,7 @@ final class RoutifyServiceProvider extends ServiceProvider
                 ListCommand::class,
                 CacheCommand::class,
                 ClearCommand::class,
+                OptimizeCommand::class,
             ]);
         }
 

@@ -69,3 +69,13 @@ it('discover() loads every enabled stack at once', function (): void {
         ->toContain('api.users.index')
         ->toContain('dashboard');
 });
+
+it('a stack with cli context does not register any HTTP route', function (): void {
+    $before = Route::getRoutes()->count();
+
+    Routify::discoverConsole();
+
+    // The console fixture file was require_once'd into the Artisan context;
+    // no HTTP routes should have been added to the router collection.
+    expect(Route::getRoutes()->count())->toBe($before);
+});

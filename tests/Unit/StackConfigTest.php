@@ -65,3 +65,51 @@ it('withMiddleware, withName, withDomain, withPattern all behave as immutable wi
         ->and($stack->withDomain('shop.example.com')->domain)->toBe('shop.example.com')
         ->and($stack->withPattern('admin*.php')->pattern)->toBe('admin*.php');
 });
+
+it('defaults context to cli for the console stack', function (): void {
+    $stack = StackConfig::fromArray('console', ['pattern' => 'console*.php']);
+
+    expect($stack->context)->toBe(StackConfig::CONTEXT_CLI);
+});
+
+it('defaults context to broadcast for the channels stack', function (): void {
+    $stack = StackConfig::fromArray('channels', ['pattern' => 'channels*.php']);
+
+    expect($stack->context)->toBe(StackConfig::CONTEXT_BROADCAST);
+});
+
+it('defaults context to http for every other stack', function (): void {
+    $stack = StackConfig::fromArray('admin', ['pattern' => 'admin*.php']);
+
+    expect($stack->context)->toBe(StackConfig::CONTEXT_HTTP);
+});
+
+it('honors an explicit context override', function (): void {
+    $stack = StackConfig::fromArray('webhooks', [
+        'pattern' => 'webhook*.php',
+        'context' => 'cli',
+    ]);
+
+    expect($stack->context)->toBe(StackConfig::CONTEXT_CLI);
+});
+
+it('throws InvalidConfigurationException when context is unknown', function (): void {
+    StackConfig::fromArray('webhooks', [
+        'pattern' => 'webhook*.php',
+        'context' => 'wat',
+    ]);
+})->throws(InvalidConfigurationException::class);
+
+it('throws InvalidConfigurationException when middleware is not an array', function (): void {
+    StackConfig::fromArray('api', [
+        'pattern' => 'api*.php',
+        'middleware' => 'auth',
+    ]);
+})->throws(InvalidConfigurationException::class, 'list of strings');
+
+it('throws InvalidConfigurationException when middleware contains non-string entries', function (): void {
+    StackConfig::fromArray('api', [
+        'pattern' => 'api*.php',
+        'middleware' => ['api', new stdClass],
+    ]);
+})->throws(InvalidConfigurationException::class, 'non-empty strings');
