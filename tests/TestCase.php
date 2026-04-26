@@ -26,5 +26,8 @@ abstract class TestCase extends Orchestra
     {
         $app['config']->set('routify.paths', [__DIR__.'/fixtures/modules']);
         $app['config']->set('routify.auto_discover_on_boot', false);
+        // Tests opt into the cache decorator explicitly; keep the global
+        // Test default off so cache-disabled assertions stay valid.
+        $app['config']->set('routify.cache.enabled', false);
     }
 }
