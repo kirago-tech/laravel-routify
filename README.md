@@ -13,9 +13,91 @@ Configurable glob patterns, middleware groups, stacks (web / api / console / cha
 
 ## Why this package
 
-Out of the box, Laravel only auto-loads `routes/web.php`, `routes/api.php`, `routes/console.php` and `routes/channels.php`. Any architecture that splits routes by module, feature, bounded context or plugin (`app/Modules/*/Routes/api.php`, `packages/*/routes/web.php`, …) ends up with a `RouteServiceProvider` full of manual `Route::group($file)` calls — tedious and easy to drift.
+### The pain: `routes/api.php` rots
 
-`routify` replaces that boilerplate with one line: declare *where* to look and *what to look for*, and the package walks the tree, applies your middleware/prefix/name/domain group, and registers everything.
+In a fresh Laravel app, every API route lives in `routes/api.php`. That file
+keeps growing. By the time the app has billing, auth, inventory, users,
+notifications and a few admin endpoints, it looks like this:
+
+```php
+// routes/api.php — 400+ lines, nobody wants to touch it
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/users',         [UserController::class, 'index']);
+    Route::post('/users',        [UserController::class, 'store']);
+    Route::get('/users/{user}',  [UserController::class, 'show']);
+    // … 30 more user routes …
+
+    Route::get('/invoices',      [InvoiceController::class, 'index']);
+    Route::post('/invoices',     [InvoiceController::class, 'store']);
+    // … 25 more billing routes …
+
+    Route::get('/products',      [ProductController::class, 'index']);
+    // … 20 more inventory routes …
+});
+```
+
+Pull-request reviews on this file are painful. Merge conflicts are constant.
+Finding *"where is the route for X"* requires `grep`. Multiply by `web.php`,
+`console.php`, `channels.php` and any custom stack (`admin`, `internal`, …)
+and the boilerplate compounds.
+
+### The disciplined workaround that's still painful
+
+The seasoned move is to split per feature and `require` each piece manually
+from a central group:
+
+```php
+// routes/api.php
+Route::middleware('api')->prefix('api')->group(function () {
+    require __DIR__.'/api/billing.php';
+    require __DIR__.'/api/users.php';
+    require __DIR__.'/api/inventory.php';
+    require __DIR__.'/api/auth.php';
+    require __DIR__.'/api/notifications.php';
+    require __DIR__.'/api/admin.php';
+    // adding a new module? don't forget to add it here too…
+});
+```
+
+Or worse — the same boilerplate inflated inside a `RouteServiceProvider`
+with five `Route::group(…)->group(__DIR__.'/…')` chains, one per feature
+folder.
+
+It's better than the giant file, but every new module forces a touch on this
+central index. **Forget the line and the routes silently disappear in
+production.** That last part is the killer: there's no compiler error, no
+test failure unless you remembered to write one — just a 404 on staging at
+9 PM the day before launch.
+
+### What Routify does
+
+Point Routify at a folder, drop your route files anywhere underneath, stop
+maintaining the index:
+
+```php
+// bootstrap/app.php (or any service provider)
+use Kirago\Routify\Facades\Routify;
+
+Routify::discover();
+```
+
+```
+app/Modules/
+├── Billing/Routes/api.php          → loaded as api/* with the api stack
+├── Billing/Routes/web.php          → loaded as web/* with the web stack
+├── Catalog/Routes/api.php
+├── Catalog/Routes/api-v2.php       → versioning is just a filename
+└── Users/Routes/api.php
+```
+
+- Add a module → its routes are picked up. No central file to edit.
+- Delete a module → its routes disappear with it. No dangling `require`.
+- Version your API by creating `api-v2.php` next to `api.php`. The default
+  glob pattern `api*.php` matches both.
+- Need a custom stack (`admin`, `internal`, `webhooks`, `tenant-api`)? Declare
+  it in `config/routify.php` and Routify treats it like a first-class citizen.
+
+The "register every file by hand" tax is gone.
 
 ---
 
