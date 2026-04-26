@@ -1,11 +1,11 @@
-# ADR-0011 — Trois commandes Artisan : `list`, `cache`, `clear`
+# ADR-0011 — Quatre commandes Artisan : `list`, `cache`, `clear`, `optimize`
 
 **Statut** : Accepté
-**Date** : 2026-04-25
+**Date** : 2026-04-26
 
 ## Contexte
 
-Une fois la découverte automatique en place, deux besoins
+Une fois la découverte automatique en place, trois besoins
 opérationnels apparaissent côté équipe :
 
 1. **Observabilité** — *"qu'est-ce qui est chargé exactement ? quel
@@ -15,10 +15,14 @@ opérationnels apparaissent côté équipe :
    routes ; le cache filesystem de Routify, lui, mémoïse la **liste
    des fichiers** entre deux scans. Il faut pouvoir le pré-chauffer
    (déploiement) et l'invalider (rollback, modification de config).
+3. **Intégration CI/CD** — un pipeline veut une seule commande à
+   appeler après `composer install` qui s'occupe de tout (clear puis
+   re-warm), sans avoir à connaître l'ordre exact ni à scripter deux
+   appels successifs.
 
 ## Décision
 
-Trois commandes, scopées sous le préfixe `routify:` :
+Quatre commandes, scopées sous le préfixe `routify:` :
 
 ### `routify:list [--stack=name]`
 
@@ -41,10 +45,10 @@ pour réduire le bruit.
 
 Pour chaque stack actif × chaque path, appelle
 `$discoverer->discover($path, $stack->pattern)`. Quand le SP a wrappé
-le discoverer en `CachedRouteDiscoverer` (cas
-`routify.cache.enabled = true`), chaque appel populate le store. Quand
-le cache est désactivé, la commande **refuse** de tourner avec un
-message clair plutôt que de scanner pour rien :
+le discoverer en `CachedRouteDiscoverer` (`routify.cache.enabled = true`),
+chaque appel populate le store. Quand le cache est désactivé, la
+commande **refuse** de tourner avec un message clair plutôt que de
+scanner pour rien :
 
 > *Routify cache is disabled. Set ROUTIFY_CACHE=true (or
 > routify.cache.enabled = true) and retry.*
@@ -54,10 +58,37 @@ message clair plutôt que de scanner pour rien :
 Recalcule la même clé de cache (via
 `CachedRouteDiscoverer::cacheKey()`) pour chaque couple
 (path, stack), et appelle `$store->forget($key)`. La commande compte
-les clés réellement oubliées et le rapporte. Quand le cache est
-désactivé, comportement no-op avec message informatif :
+les clés réellement oubliées. Quand le cache est désactivé, no-op
+informatif (succès) :
 
 > *Routify cache is disabled — nothing to clear.*
+
+### `routify:optimize`
+
+Alias atomique pour la séquence `routify:clear` + `routify:cache`. Une
+seule commande à brancher dans un pipeline CI/CD ou un script de
+déploiement, qui :
+
+1. invalide le cache existant (idempotent, no-op si désactivé),
+2. re-warm le cache pour la config courante.
+
+```php
+final class OptimizeCommand extends Command
+{
+    public function handle(): int
+    {
+        if ($this->call('routify:clear') !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        return $this->call('routify:cache');
+    }
+}
+```
+
+C'est la commande recommandée dans le README pour le déploiement.
+Branchable directement dans un Composer script (`post-install-cmd` /
+`post-update-cmd`).
 
 ### Enregistrement dans le service provider
 
@@ -65,41 +96,42 @@ Conditionnel sur `runningInConsole()` pour éviter le coût (minime mais
 réel) en contexte HTTP :
 
 ```php
-public function boot(): void
-{
-    if ($this->app->runningInConsole()) {
-        $this->publishes([…], 'routify-config');
-
-        $this->commands([
-            ListCommand::class,
-            CacheCommand::class,
-            ClearCommand::class,
-        ]);
-    }
-    // …
+if ($this->app->runningInConsole()) {
+    $this->commands([
+        ListCommand::class,
+        CacheCommand::class,
+        ClearCommand::class,
+        OptimizeCommand::class,
+    ]);
 }
 ```
 
 ## Alternatives envisagées
 
-- **Une seule commande `routify` avec sous-commandes
-  (`routify list`, `routify cache`)** — rejeté : Laravel/Symfony
-  console ne supporte pas naturellement les sous-commandes ; les
-  commandes scopées par `:` sont la convention Laravel
-  (`route:cache`, `cache:clear`, `migrate:fresh`).
-- **Pas de commandes séparées, tout dans `Routify::cache()` /
-  `Routify::clear()` programmatique** — rejeté : retire le confort
-  CLI (déploiement scripts, opérations) et l'observabilité instantanée.
+- **Une seule commande `routify` avec sous-commandes** — rejeté :
+  Symfony console ne supporte pas naturellement les sous-commandes.
+  Convention Laravel = `verb:noun` (`route:cache`, `cache:clear`).
+- **Pas de commande `optimize` séparée, documenter `clear && cache`
+  dans le README** — rejeté : retire l'atomicité, force chaque
+  utilisateur à connaître l'ordre exact, double les chances de typo
+  dans les pipelines.
+- **Hook `routify:optimize` directement dans `php artisan optimize`
+  natif Laravel** — option future. Laravel 11+ permet d'enregistrer
+  des callbacks dans `Application::optimizing()`. À explorer pour 1.1
+  si la communauté le demande.
 
 ## Conséquences
 
-- ✅ Trois opérations distinctes, chacune a un seul responsibility.
-- ✅ Convention de nommage cohérente avec Laravel
-  (`route:cache` / `route:clear` / `route:list`).
-- ✅ Refus explicite quand le cache est désactivé : pas de
-  fausse-réussite trompeuse.
+- ✅ Quatre opérations distinctes, chacune avec une seule
+  responsibility.
+- ✅ Convention de nommage cohérente avec Laravel (`route:*`).
+- ✅ `routify:optimize` rend l'intégration CI/CD trivial — une
+  unique ligne dans `post-install-cmd` couvre clear + warm.
+- ✅ Refus explicite quand le cache est désactivé sur `cache` (échec)
+  ou `optimize` (échec via la sous-commande). `clear` reste no-op
+  silencieux pour ne pas casser les pipelines qui appellent par
+  prudence dans des environnements sans cache.
 - ⚠️ Les commandes lisent la config et instancient leurs propres
   `StackConfig` plutôt que de passer par `RoutifyManager`. Légère
-  duplication de logique — assumée pour garder les commandes
-  dépendant uniquement du contract `RouteDiscoverer` et pas de toute
-  l'API du manager.
+  duplication assumée pour garder les commandes dépendant uniquement
+  du contract `RouteDiscoverer` et pas de toute l'API du manager.
