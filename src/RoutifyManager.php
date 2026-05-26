@@ -88,6 +88,15 @@ final class RoutifyManager implements StackLoader
 
         $touchedRouter = false;
         foreach (array_keys($files) as $file) {
+            // Defense in depth: even if the discoverer hands us a path that
+            // no longer exists (race between scan and load, cache layer
+            // returning a stale entry, custom discoverer with a bug, …)
+            // the manager must NEVER let Laravel's require() blow up the
+            // whole boot. Skip silently — the cache layer auto-heals on
+            // the next read via CachedRouteDiscoverer::rememberValidated().
+            if (! is_file($file)) {
+                continue;
+            }
             $touchedRouter = $this->registerRouteFile($stack, $file) || $touchedRouter;
         }
 
