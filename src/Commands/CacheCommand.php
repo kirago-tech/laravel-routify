@@ -38,7 +38,10 @@ final class CacheCommand extends Command
 
             $count = 0;
             foreach ($paths as $path) {
-                $count += count($discoverer->discover($path, $stack->pattern));
+                if ($stack->pattern !== null) {
+                    $count += count($discoverer->discover($path, $stack->pattern));
+                }
+                $count += count($discoverer->discoverInFolder($path, $stack->name));
             }
             $rows[] = [$stack->name, $count];
         }

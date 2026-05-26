@@ -35,12 +35,24 @@ final class ListCommand extends Command
             }
 
             foreach ($paths as $path) {
-                foreach ($discoverer->discover($path, $stack->pattern) as $file) {
+                if ($stack->pattern !== null) {
+                    foreach ($discoverer->discover($path, $stack->pattern) as $file) {
+                        $rows[] = [
+                            $stack->name,
+                            $path,
+                            ltrim(str_replace([$path, '\\'], ['', '/'], $file), '/'),
+                            $stack->pattern,
+                            $stack->middleware === [] ? '-' : implode(', ', $stack->middleware),
+                            $stack->prefix ?? '-',
+                        ];
+                    }
+                }
+                foreach ($discoverer->discoverInFolder($path, $stack->name) as $file) {
                     $rows[] = [
                         $stack->name,
                         $path,
                         ltrim(str_replace([$path, '\\'], ['', '/'], $file), '/'),
-                        $stack->pattern,
+                        '(by-folder)',
                         $stack->middleware === [] ? '-' : implode(', ', $stack->middleware),
                         $stack->prefix ?? '-',
                     ];

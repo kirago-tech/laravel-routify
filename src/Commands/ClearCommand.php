@@ -35,8 +35,14 @@ final class ClearCommand extends Command
         foreach ($stacks as $name => $raw) {
             $stack = StackConfig::fromArray((string) $name, (array) $raw);
             foreach ($paths as $path) {
-                $key = CachedRouteDiscoverer::cacheKey($prefix, $path, $stack->pattern);
-                if ($store->forget($key)) {
+                if ($stack->pattern !== null) {
+                    $patternKey = CachedRouteDiscoverer::cacheKey($prefix, $path, $stack->pattern);
+                    if ($store->forget($patternKey)) {
+                        $forgotten++;
+                    }
+                }
+                $folderKey = CachedRouteDiscoverer::folderCacheKey($prefix, $path, $stack->name);
+                if ($store->forget($folderKey)) {
                     $forgotten++;
                 }
             }
