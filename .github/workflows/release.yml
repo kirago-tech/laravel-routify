@@ -1,0 +1,107 @@
+name: release
+
+# Publishes a GitHub Release whenever a vX.Y.Z tag lands on the repo.
+# The release body is the matching section of CHANGELOG.md — kept in sync
+# manually as part of the release flow (cf. docs/adr/0012-versioning-par-tags-git.md).
+# `workflow_dispatch` lets a maintainer (re)publish a release for any
+# existing tag, e.g. to backfill v1.1.0 retroactively or fix typoed notes.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (must already exist, e.g. v1.1.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so `workflow_dispatch` can checkout an older tag
+          # whose dating commit is no longer at HEAD.
+          fetch-depth: 0
+
+      - name: Resolve target tag and version
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          if ! git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG does not exist on this repository."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # SemVer pre-release identifier present (e.g. 1.2.0-rc1) ⇒ mark
+          # the GitHub release as a pre-release so it does not show up as
+          # "Latest" on the repo home page.
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout CHANGELOG at the tag
+        # When a workflow_dispatch is used to backfill an older release,
+        # we want THAT tag's CHANGELOG, not HEAD's. For tag-push the two
+        # are identical, so this is a no-op there.
+        run: git checkout "${{ steps.tag.outputs.name }}" -- CHANGELOG.md
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          # index()-based parse — robust against ## [X.Y.Z] header variations
+          # (with or without trailing date / pre-release suffix).
+          awk -v version="$VERSION" '
+            {
+              if (index($0, "## [" version "]") == 1) { in_section=1; next }
+              if (in_section && index($0, "## [") == 1) { exit }
+              if (in_section) print
+            }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "::error::No CHANGELOG section for $VERSION. Date the [Unreleased] block as ## [$VERSION] - YYYY-MM-DD and re-dispatch."
+            exit 1
+          fi
+          echo "Release notes preview:"
+          echo "----"
+          cat release_notes.md
+          echo "----"
+
+      - name: Publish or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.tag.outputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — updating notes."
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes-file release_notes.md \
+              $PRERELEASE_FLAG
+          else
+            echo "Creating release $TAG."
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes-file release_notes.md \
+              $PRERELEASE_FLAG
+          fi
