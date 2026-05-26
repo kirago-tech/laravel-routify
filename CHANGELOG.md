@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-26
+
 ### Added
 
 - **Folder-based discovery.** A `.php` file under a `paths[]` directory whose
@@ -96,5 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP `^8.2`
 - Laravel `^11.0 || ^12.0`
 
-[Unreleased]: https://github.com/kirago-tech/laravel-routify/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kirago-tech/laravel-routify/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kirago-tech/laravel-routify/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kirago-tech/laravel-routify/releases/tag/v1.0.0
