@@ -30,6 +30,7 @@ Decisions*](https://cognitect.com/blog/2011/11/15/documenting-architecture-decis
 
 ### Cache de découverte
 - [ADR-0005 — Cache opt-in via decorator et clé hashée par couple `(basePath, pattern)`](0005-cache-decorator-cle-hashee.md)
+- [ADR-0014 — Cache auto-heal et escape hatch des commandes `routify:*`](0014-cache-auto-heal.md)
 
 ### API publique
 - [ADR-0006 — Value objects `final readonly` et withers immuables](0006-value-objects-readonly.md)

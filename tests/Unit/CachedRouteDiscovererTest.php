@@ -40,17 +40,22 @@ function arrayCache(): Repository
 }
 
 it('forwards to the inner discoverer on cache miss and returns its result', function (): void {
-    $inner = spyDiscoverer(['/tmp/api.php']);
+    // Since 1.1.1 the cached discoverer validates that every cached path
+    // still exists on disk; tests therefore pin to real files (this test
+    // file is a convenient always-present anchor).
+    $real = __FILE__;
+    $inner = spyDiscoverer([$real]);
     $cached = new CachedRouteDiscoverer($inner, arrayCache(), 'routify:files');
 
     $result = $cached->discover('/tmp', 'api*.php');
 
-    expect($result)->toBe(['/tmp/api.php']);
+    expect($result)->toBe([$real]);
     expect($inner->calls)->toBe(1);
 });
 
 it('does not call the inner discoverer on a cache hit (same basePath and pattern)', function (): void {
-    $inner = spyDiscoverer(['/tmp/api.php']);
+    $real = __FILE__;
+    $inner = spyDiscoverer([$real]);
     $cached = new CachedRouteDiscoverer($inner, arrayCache(), 'routify:files');
 
     $first = $cached->discover('/tmp', 'api*.php');
@@ -65,17 +70,19 @@ it('does not call the inner discoverer on a cache hit (same basePath and pattern
 // ---------------------------------------------------------------------------
 
 it('forwards discoverInFolder to the inner discoverer on cache miss and returns its result', function (): void {
-    $inner = spyDiscoverer(['/tmp/api/billing.php']);
+    $real = __FILE__;
+    $inner = spyDiscoverer([$real]);
     $cached = new CachedRouteDiscoverer($inner, arrayCache(), 'routify:files');
 
     $result = $cached->discoverInFolder('/tmp', 'api');
 
-    expect($result)->toBe(['/tmp/api/billing.php']);
+    expect($result)->toBe([$real]);
     expect($inner->folderCalls)->toBe(1);
 });
 
 it('does not call the inner discoverer on a cache hit for discoverInFolder (same basePath and folderName)', function (): void {
-    $inner = spyDiscoverer(['/tmp/api/billing.php']);
+    $real = __FILE__;
+    $inner = spyDiscoverer([$real]);
     $cached = new CachedRouteDiscoverer($inner, arrayCache(), 'routify:files');
 
     $first = $cached->discoverInFolder('/tmp', 'api');

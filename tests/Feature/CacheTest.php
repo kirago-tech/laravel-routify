@@ -30,13 +30,17 @@ it('persists every (basePath, pattern) result on first discovery', function (): 
 it('skips the filesystem on a cache hit (manifest restored from cache)', function (): void {
     $apiKey = CachedRouteDiscoverer::cacheKey('routify:files', dirname(__DIR__).'/fixtures/modules', 'api*.php');
 
-    cache()->forever($apiKey, ['/seeded/from/cache.php']);
+    // Since 1.1.1 the cached discoverer validates every cached path against
+    // the disk; the seeded manifest must therefore reference real files
+    // (any real fixture file does the job here).
+    $seeded = [str_replace('\\', '/', dirname(__DIR__).'/fixtures/modules/ModuleA/Routes/api.php')];
+    cache()->forever($apiKey, $seeded);
 
     /** @var CachedRouteDiscoverer $discoverer */
     $discoverer = $this->app->make(RouteDiscoverer::class);
     $found = $discoverer->discover(dirname(__DIR__).'/fixtures/modules', 'api*.php');
 
-    expect($found)->toBe(['/seeded/from/cache.php']);
+    expect($found)->toBe($seeded);
 });
 
 it('routify:clear forces the next discover() to re-hit the filesystem', function (): void {

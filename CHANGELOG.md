@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stale-cache lockout.** When the discovery cache referenced a route file
+  that had since been renamed or deleted (e.g. after a 1.0 → 1.1 file-layout
+  migration), the next boot tried to `require()` the missing path and crashed
+  with `Failed to open stream` — and because boot crashed, `routify:clear`
+  itself became unreachable, locking the operator out of the only command
+  that could fix the state. Three independent safeguards now prevent this:
+  - `CachedRouteDiscoverer` validates every cached path on read; an entry
+    that lists at least one missing file is forgotten and the inner
+    discoverer is consulted again. The cache is now self-healing.
+  - `RoutifyManager::loadStack()` skips any path that does not exist on
+    disk instead of letting Laravel's `require()` blow up the bootstrap.
+  - `RoutifyServiceProvider::boot()` no longer triggers auto-discovery when
+    the running Artisan command is `routify:*`, so the recovery commands
+    stay reachable even if the discovery state is otherwise corrupt.
+
+### Changed
+
+- **Cache read contract.** `CachedRouteDiscoverer::discover()` and
+  `discoverInFolder()` no longer return cached paths blindly: every path is
+  validated against the disk via `is_file()` before the cached value is
+  honoured. The hit-path cost is `O(n)` `is_file()` calls, negligible
+  compared with the full Symfony Finder scan a miss would trigger.
+  Custom code that seeded the discovery cache with synthetic paths for
+  tests must seed real files instead. See `docs/adr/0014-cache-auto-heal.md`.
+
 ## [1.1.0] - 2026-05-26
 
 ### Added

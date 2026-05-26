@@ -60,8 +60,30 @@ final class RoutifyServiceProvider extends ServiceProvider
             ]);
         }
 
-        if ($this->app->make(Config::class)->get('routify.auto_discover_on_boot')) {
-            $this->app->make(RoutifyManager::class)->discover();
+        if (! $this->app->make(Config::class)->get('routify.auto_discover_on_boot')) {
+            return;
         }
+
+        // Escape hatch: when the operator is running a routify:* command, the
+        // boot must NEVER trigger discovery — those commands exist precisely
+        // to repair a broken discovery state (stale cache, renamed files,
+        // unreachable cache backend), so they have to stay reachable even
+        // when auto-discovery would otherwise crash the bootstrap.
+        if ($this->app->runningInConsole()
+            && self::isMaintenanceCommand((string) ($_SERVER['argv'][1] ?? ''))
+        ) {
+            return;
+        }
+
+        $this->app->make(RoutifyManager::class)->discover();
+    }
+
+    /**
+     * Pure helper so the routing of routify:* commands stays unit-testable
+     * without bootstrapping the framework.
+     */
+    public static function isMaintenanceCommand(string $command): bool
+    {
+        return str_starts_with($command, 'routify:');
     }
 }
