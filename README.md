@@ -113,7 +113,7 @@ The package auto-registers via Laravel's package discovery. Publish the config t
 php artisan vendor:publish --tag=routify-config
 ```
 
-Requires PHP 8.2+ and Laravel 11 or 12.
+Requires PHP 8.2+ and Laravel 11, 12 or 13.
 
 > **Zero-crash install** — the shipped config has `paths => []`. The package
 > is wired but does nothing until you point it at the directories your app
@@ -146,6 +146,41 @@ app/Modules/
 …and they all become `api/invoices`, `api/v2/*` etc. with the `api`
 middleware group applied. With `auto_discover_on_boot = true` (the default),
 that's it — no extra wiring.
+
+### Folder-based discovery — drop a file, get a route
+
+Since 1.1, you don't have to name your route files `api*.php` or `web*.php`
+anymore. Drop them in a folder named after the stack and Routify picks them
+up. The two modes coexist; pick whichever fits.
+
+```
+app/Modules/
+└── Billing/Routes/
+    ├── api.php             ← matched by pattern → api stack (works since 1.0)
+    ├── api/
+    │   ├── billing.php     ← matched by folder → api stack (new in 1.1)
+    │   ├── invoices.php    ← matched by folder → api stack
+    │   └── v2/orders.php   ← matched by folder, any depth → api stack
+    └── web/
+        └── portal.php      ← matched by folder → web stack
+```
+
+The rule is: under any `paths[]` directory, a `.php` file whose relative path
+contains a segment exactly equal to a declared stack key (`api`, `web`, your
+own `admin`, …) belongs to that stack — at any depth, with that stack's
+middleware, prefix, name prefix and domain applied automatically.
+
+Conventions are simpler than configs: no rename of existing files, no
+central index to maintain, and a custom stack works as soon as the folder
+exists.
+
+> **Migration note.** If a folder under your scanned `paths[]` happens to be
+> named after a stack key (`api/`, `web/`, …) and contains non-route PHP
+> files (helpers, classes you forgot to namespace, …), those files will now
+> be loaded as routes. Either narrow your `paths` config or rename the
+> folder.
+
+### Explicit discovery for advanced setups
 
 For explicit control, set `auto_discover_on_boot => false` and call from
 your `AppServiceProvider::boot()` (recommended location — facades are
@@ -202,8 +237,22 @@ return [
             'name'       => 'api.',
             'domain'     => null,
         ],
-        'console'  => [ 'enabled' => true, 'pattern' => 'console*.php',  'middleware' => [], 'prefix' => null, 'name' => null, 'domain' => null ],
-        'channels' => [ 'enabled' => true, 'pattern' => 'channels*.php', 'middleware' => [], 'prefix' => null, 'name' => null, 'domain' => null ],
+        'console' => [
+            'enabled'    => true,
+            'pattern'    => 'console*.php',
+            'middleware' => [],
+            'prefix'     => null,
+            'name'       => null,
+            'domain'     => null,
+        ],
+        'channels' => [
+            'enabled'    => true,
+            'pattern'    => 'channels*.php',
+            'middleware' => [],
+            'prefix'     => null,
+            'name'       => null,
+            'domain'     => null,
+        ],
     ],
 
     'cache' => [
