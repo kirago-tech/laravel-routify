@@ -17,6 +17,11 @@ on:
         description: 'Tag to publish (must already exist, e.g. v1.1.1)'
         required: true
         type: string
+      mark_latest:
+        description: 'Mark this release as Latest? Defaults to false: dispatch is primarily used to backfill historical tags, and the most recent publication date — not the highest semver — controls the "Latest" badge on GitHub. Leaving this off keeps the current Latest pinned. Tick only when dispatching for a brand-new top-of-tree release.'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -92,16 +97,34 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
 
+          # Decide the --latest flag.
+          # - Tag push: omit so gh auto-detects (most recent stable wins).
+          #   For an automated tag-push release this gives the right answer
+          #   because the new tag IS the most recent publication.
+          # - Dispatch: respect the mark_latest input (default false). This
+          #   keeps backfills from demoting the current Latest, since GitHub
+          #   picks Latest by publication date, not by semver.
+          LATEST_FLAG=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.mark_latest }}" = "true" ]; then
+              LATEST_FLAG="--latest"
+            else
+              LATEST_FLAG="--latest=false"
+            fi
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists — updating notes."
             gh release edit "$TAG" \
               --title "$TAG" \
               --notes-file release_notes.md \
-              $PRERELEASE_FLAG
+              $PRERELEASE_FLAG \
+              $LATEST_FLAG
           else
             echo "Creating release $TAG."
             gh release create "$TAG" \
               --title "$TAG" \
               --notes-file release_notes.md \
-              $PRERELEASE_FLAG
+              $PRERELEASE_FLAG \
+              $LATEST_FLAG
           fi
