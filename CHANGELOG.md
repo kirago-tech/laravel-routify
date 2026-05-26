@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-27
+
 ### Fixed
 
 - **Stale-cache lockout.** When the discovery cache referenced a route file
@@ -125,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP `^8.2`
 - Laravel `^11.0 || ^12.0`
 
-[Unreleased]: https://github.com/kirago-tech/laravel-routify/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kirago-tech/laravel-routify/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/kirago-tech/laravel-routify/releases/tag/v1.1.1
 [1.1.0]: https://github.com/kirago-tech/laravel-routify/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kirago-tech/laravel-routify/releases/tag/v1.0.0
