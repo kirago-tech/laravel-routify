@@ -31,8 +31,8 @@
     "require-dev": {
         "laravel/pint": "^1.18",
         "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
+        "pestphp/pest": "^3.0 || ^4.0",
+        "pestphp/pest-plugin-laravel": "^3.0 || ^4.0",
         "phpstan/phpstan": "^1.12"
     },
     "autoload": {
