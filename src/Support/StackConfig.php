@@ -22,7 +22,7 @@ final readonly class StackConfig
     public function __construct(
         public string $name,
         public bool $enabled,
-        public string $pattern,
+        public ?string $pattern,
         public array $middleware,
         public ?string $prefix = null,
         public ?string $namePrefix = null,
@@ -35,14 +35,7 @@ final readonly class StackConfig
      */
     public static function fromArray(string $name, array $config): self
     {
-        $pattern = $config['pattern'] ?? null;
-        if (! is_string($pattern) || $pattern === '') {
-            throw new InvalidConfigurationException(sprintf(
-                'Stack "%s" must define a non-empty string "pattern" (e.g. "api*.php").',
-                $name,
-            ));
-        }
-
+        $pattern = self::normalizePattern($name, $config['pattern'] ?? null);
         $middleware = self::normalizeMiddleware($name, $config['middleware'] ?? []);
         $context = self::resolveContext($name, $config['context'] ?? null);
 
@@ -58,7 +51,7 @@ final readonly class StackConfig
         );
     }
 
-    public function withPattern(string $pattern): self
+    public function withPattern(?string $pattern): self
     {
         return new self(
             $this->name, $this->enabled, $pattern, $this->middleware,
@@ -99,6 +92,23 @@ final readonly class StackConfig
             $this->name, $this->enabled, $this->pattern, array_values($middleware),
             $this->prefix, $this->namePrefix, $this->domain, $this->context,
         );
+    }
+
+    private static function normalizePattern(string $name, mixed $raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (! is_string($raw)) {
+            throw new InvalidConfigurationException(sprintf(
+                'Stack "%s" pattern must be a string or null, %s given.',
+                $name,
+                get_debug_type($raw),
+            ));
+        }
+
+        return $raw;
     }
 
     /**
