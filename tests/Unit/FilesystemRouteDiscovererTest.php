@@ -106,3 +106,75 @@ it('returns an empty array when no file matches the pattern', function (): void 
 
     expect($found)->toBe([]);
 });
+
+// ---------------------------------------------------------------------------
+// discoverInFolder (1.1 — folder-based discovery)
+// ---------------------------------------------------------------------------
+
+it('discoverInFolder finds every .php file directly under <basePath>/<folderName>/', function (): void {
+    $billing = touchFile($this->tempDir.'/api/billing.php');
+    $users = touchFile($this->tempDir.'/api/users.php');
+    touchFile($this->tempDir.'/web/dashboard.php'); // different folder, must be ignored
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+
+    expect($found)->toBe([$billing, $users]);
+});
+
+it('discoverInFolder finds files when the named folder is nested deep in the path', function (): void {
+    $billing = touchFile($this->tempDir.'/Modules/Blog/Routes/api/billing.php');
+    $orders = touchFile($this->tempDir.'/Modules/Blog/Routes/api/v2/orders.php');
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+
+    expect($found)->toBe([$billing, $orders]);
+});
+
+it('discoverInFolder matches segment names exactly (not as substring)', function (): void {
+    // "apiary" must NOT match folder name "api" — segment-exact, not substring.
+    touchFile($this->tempDir.'/Modules/apiary/honey.php');
+    $real = touchFile($this->tempDir.'/Modules/api/users.php');
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+
+    expect($found)->toBe([$real]);
+});
+
+it('discoverInFolder returns an empty array when no ancestor folder is named like that', function (): void {
+    touchFile($this->tempDir.'/Modules/Blog/Routes/web.php');
+    touchFile($this->tempDir.'/Modules/Blog/api.php'); // file at root, no api/ ancestor
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+
+    expect($found)->toBe([]);
+});
+
+it('discoverInFolder returns an empty array (no exception) when basePath does not exist', function (): void {
+    $missing = $this->tempDir.'/does-not-exist';
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($missing, 'api');
+
+    expect($found)->toBe([]);
+});
+
+it('discoverInFolder ignores non-php files inside the named folder', function (): void {
+    $php = touchFile($this->tempDir.'/api/users.php');
+    touchFile($this->tempDir.'/api/README.md');
+    touchFile($this->tempDir.'/api/data.json');
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+
+    expect($found)->toBe([$php]);
+});
+
+it('discoverInFolder returns the result sorted alphabetically', function (): void {
+    touchFile($this->tempDir.'/api/zebra.php');
+    touchFile($this->tempDir.'/api/alpha.php');
+    touchFile($this->tempDir.'/api/middle.php');
+
+    $found = (new FilesystemRouteDiscoverer)->discoverInFolder($this->tempDir, 'api');
+    $sorted = $found;
+    sort($sorted);
+
+    expect($found)->toBe($sorted);
+});

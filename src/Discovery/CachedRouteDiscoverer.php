@@ -23,8 +23,23 @@ final class CachedRouteDiscoverer implements RouteDiscoverer
         );
     }
 
+    public function discoverInFolder(string $basePath, string $folderName): array
+    {
+        return $this->cache->rememberForever(
+            self::folderCacheKey($this->keyPrefix, $basePath, $folderName),
+            fn (): array => $this->inner->discoverInFolder($basePath, $folderName),
+        );
+    }
+
     public static function cacheKey(string $keyPrefix, string $basePath, string $pattern): string
     {
         return $keyPrefix.':'.hash('xxh128', $basePath.'|'.$pattern);
+    }
+
+    public static function folderCacheKey(string $keyPrefix, string $basePath, string $folderName): string
+    {
+        // Distinct namespace ("folder:") so a folderName equal to a pattern
+        // string cannot collide with a pattern cache entry.
+        return $keyPrefix.':folder:'.hash('xxh128', $basePath.'|'.$folderName);
     }
 }
