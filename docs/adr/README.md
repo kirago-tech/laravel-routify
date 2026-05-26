@@ -26,6 +26,7 @@ Decisions*](https://cognitect.com/blog/2011/11/15/documenting-architecture-decis
 - [ADR-0002 — Symfony Finder comme moteur de scan filesystem](0002-symfony-finder.md)
 - [ADR-0003 — Patterns glob configurables et stacks comme abstraction](0003-patterns-glob-et-stacks.md)
 - [ADR-0004 — Console et channels : bypass de `Route::group()`](0004-bypass-route-group-console-channels.md)
+- [ADR-0013 — Découverte par dossier en coexistence avec les patterns (1.1)](0013-decouverte-par-dossier.md)
 
 ### Cache de découverte
 - [ADR-0005 — Cache opt-in via decorator et clé hashée par couple `(basePath, pattern)`](0005-cache-decorator-cle-hashee.md)

@@ -9,6 +9,7 @@ use Illuminate\Routing\Router;
 use Kirago\Routify\Contracts\RouteDiscoverer;
 use Kirago\Routify\Contracts\StackLoader;
 use Kirago\Routify\Exceptions\InvalidConfigurationException;
+use Kirago\Routify\Exceptions\RoutifyException;
 use Kirago\Routify\Support\RouteStackBuilder;
 use Kirago\Routify\Support\StackConfig;
 
@@ -61,7 +62,22 @@ final class RoutifyManager implements StackLoader
     {
         $files = [];
         foreach ($pathsOverride ?? $this->paths() as $basePath) {
-            foreach ($this->discoverer->discover($basePath, $stack->pattern) as $file) {
+            // A stack without pattern relies on by-folder discovery alone, but
+            // a misconfigured paths[] still has to fail loudly (cf. v1.0 contract).
+            if ($stack->pattern === null && ! is_dir($basePath)) {
+                throw new RoutifyException(sprintf(
+                    'Routify cannot scan "%s": the directory does not exist. Check your routify.paths configuration.',
+                    $basePath,
+                ));
+            }
+
+            if ($stack->pattern !== null) {
+                foreach ($this->discoverer->discover($basePath, $stack->pattern) as $file) {
+                    $files[$file] = true;
+                }
+            }
+
+            foreach ($this->discoverer->discoverInFolder($basePath, $stack->name) as $file) {
                 $files[$file] = true;
             }
         }

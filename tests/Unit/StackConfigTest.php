@@ -34,17 +34,22 @@ it('applies sensible defaults when optional fields are missing', function (): vo
         ->and($stack->domain)->toBeNull();
 });
 
-it('throws InvalidConfigurationException when pattern is missing', function (): void {
-    StackConfig::fromArray('api', ['middleware' => ['api']]);
-})->throws(InvalidConfigurationException::class, 'pattern');
+it('accepts a stack declared without a pattern (pattern becomes null)', function (): void {
+    $stack = StackConfig::fromArray('admin', ['middleware' => ['web', 'auth']]);
 
-it('throws InvalidConfigurationException when pattern is an empty string', function (): void {
-    StackConfig::fromArray('api', ['pattern' => '']);
-})->throws(InvalidConfigurationException::class);
+    expect($stack->pattern)->toBeNull()
+        ->and($stack->middleware)->toBe(['web', 'auth']);
+});
 
-it('throws InvalidConfigurationException when pattern is not a string', function (): void {
+it('normalises an empty-string pattern to null (treated as missing)', function (): void {
+    $stack = StackConfig::fromArray('admin', ['pattern' => '']);
+
+    expect($stack->pattern)->toBeNull();
+});
+
+it('still throws InvalidConfigurationException when pattern is not a string', function (): void {
     StackConfig::fromArray('api', ['pattern' => ['api*.php']]);
-})->throws(InvalidConfigurationException::class);
+})->throws(InvalidConfigurationException::class, 'pattern');
 
 it('withPrefix returns a new instance and leaves the original untouched', function (): void {
     $original = StackConfig::fromArray('api', ['pattern' => 'api*.php', 'prefix' => 'api']);

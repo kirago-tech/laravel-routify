@@ -93,3 +93,43 @@ it('routify:optimize fails when cache is disabled', function (): void {
     // The clear sub-call succeeds (no-op), but the cache sub-call fails.
     $this->artisan('routify:optimize')->assertFailed();
 });
+
+// ---------------------------------------------------------------------------
+// Commands × folder-based discovery (1.1)
+// ---------------------------------------------------------------------------
+
+it('routify:list reports files discovered via the by-folder convention', function (): void {
+    // ModuleF/Routes/api/billing.php exists in fixtures since 1.1.
+    $this->artisan('routify:list')
+        ->assertSuccessful()
+        ->expectsOutputToContain('api/billing.php');
+});
+
+it('routify:cache warms the folder cache key for every (path, stack) pair', function (): void {
+    enableRoutifyCache($this->app);
+
+    $this->artisan('routify:cache')->assertSuccessful();
+
+    $folderKey = CachedRouteDiscoverer::folderCacheKey(
+        'routify:files',
+        dirname(__DIR__).'/fixtures/modules',
+        'api',
+    );
+    expect(cache()->has($folderKey))->toBeTrue();
+});
+
+it('routify:clear forgets the folder cache keys as well as the pattern ones', function (): void {
+    enableRoutifyCache($this->app);
+
+    $this->artisan('routify:cache')->assertSuccessful();
+    $folderKey = CachedRouteDiscoverer::folderCacheKey(
+        'routify:files',
+        dirname(__DIR__).'/fixtures/modules',
+        'api',
+    );
+    expect(cache()->has($folderKey))->toBeTrue();
+
+    $this->artisan('routify:clear')->assertSuccessful();
+
+    expect(cache()->has($folderKey))->toBeFalse();
+});

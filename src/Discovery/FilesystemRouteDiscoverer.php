@@ -34,6 +34,33 @@ final class FilesystemRouteDiscoverer implements RouteDiscoverer
         return array_values($files);
     }
 
+    public function discoverInFolder(string $basePath, string $folderName): array
+    {
+        if (! is_dir($basePath)) {
+            return [];
+        }
+
+        $finder = (new Finder)
+            ->files()
+            ->in($basePath)
+            ->name('*.php');
+
+        $files = [];
+        foreach ($finder as $file) {
+            $relativeDir = str_replace('\\', '/', $file->getRelativePath());
+            if ($relativeDir === '') {
+                continue;
+            }
+            if (in_array($folderName, explode('/', $relativeDir), true)) {
+                $files[] = self::normalize($file->getPathname());
+            }
+        }
+
+        sort($files);
+
+        return array_values($files);
+    }
+
     private static function normalize(string $path): string
     {
         return str_replace('\\', '/', $path);
